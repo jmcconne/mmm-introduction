@@ -1,0 +1,267 @@
+---
+title: "Introduction to Media Mix Modeling (MMM) in R"
+output:
+  html_document:
+    toc: no
+  pdf_document:
+    toc: no
+  word_document:
+    toc: no
+---
+
+In this post, we will provide an introduction to MMM (Media Mix Modeling, also sometimes referred to as Marketing Mix Modeling), a technique for measuring the impact of spend in various marketing channels on business outcomes (e.g. profit, revenue, etc.). The objective of this article is to develop the intuition for what MMM is trying to achieve via code examples that the reader can work through and modify to help reinforce and expand their own understanding. We will start with a couple simple examples using idealized data sets where the relationship between marketing spend and revenue is known, and then we will move to an example where we fit a model to a simulated data set which is more realistic and closer to what we would encounter in the real world.
+
+## Foundational concepts
+
+First, let's start with the simplest example where we have only a single marketing channel and a known relationship between marketing spend and revenue. Though not realistic, this will serve as a foundation for what follows. We will express the relationship between revenue and marketing spend as log-linear in the following way:
+
+$Rev = \beta_0 + \beta_1 ln(S_1+1)$
+
+where $\beta_0$ is the baseline revenue (revenue in the absence of marketing), $S_1$ is the marketing channel spend, and $\beta_1$ is how responsive revenue is to changes in $S_1$. We are taking the logarithm of marketing spend to capture the diminishing returns we typically see from increased marketing spend.
+
+Note: We add 1 to spend so that at spend = 0, there is no incremental revenue beyond baseline revenue.
+
+Let's represent that as code now and plot marketing spend against revenue:
+```{r}
+
+library(ggplot2)
+
+baseline_rev <- 500 # Revenue in the absence of marketing
+
+spend_A <- seq(0, 100, by=1) # Range of spend in channel A
+slope_A <- 20 # Revenue response to spend in channel A
+
+total_rev <- baseline_rev + slope_A * log(spend_A + 1) # Logarithmic relationship between spend in channel A and revenue
+profit <- total_rev - spend_A 
+
+max_profit_spend = spend_A[which(profit == max(profit))[1]] # Spend that maximizes profit
+
+negative_profit_spend = spend_A[which(profit < baseline_rev)[1]] # Revenue loss spend threshold
+
+# Plot spend in channel A against total revenue
+ggplot() +
+  geom_line(aes(x=spend_A, y=total_rev)) +
+  geom_point(aes(x=spend_A, y=total_rev))
+  #scale_x_continuous(breaks=seq(0, 100, by=20))
+  #scale_y_continuous(breaks=seq(0, 100, by=20))
+
+```
+
+As seen in the plot above, spending more in channel A always generates additional revenue, but with diminishing returns. At what point does it no longer make sense to spend more in channel A? To answer that, we will consider profit:
+```{r}
+
+max_profit_spend = spend_A[which(profit == max(profit))[1]] # Spend that maximizes profit
+
+negative_profit_spend = spend_A[which(profit < baseline_rev)[1]] # Revenue loss spend threshold
+
+# Plot spend in channel A against profit
+ggplot() +
+  geom_line(aes(x=spend_A, y=profit)) +
+  geom_point(aes(x=spend_A, y=profit), size=1) +
+  #scale_x_continuous(breaks=seq(0, 100, by=20)) +
+  #scale_y_continuous(breaks=seq(0, 100, by=20)) +
+  geom_vline(xintercept=max_profit_spend, color="green") +
+  #annotate("text", x=max_profit_spend, y=120, label=max_profit_spend, angle=90) +
+  annotate("text", x=max_profit_spend, y=baseline_rev, label=max_profit_spend, angle=90, hjust=0) +
+  geom_vline(xintercept=negative_profit_spend, color="red") +
+  annotate("text", x=negative_profit_spend, y=baseline_rev, label=negative_profit_spend, angle=90, hjust=0)
+  
+```
+
+For simplicity, let's assume the baseline revenue of $500 is all profit (i.e. baseline profit is also $500). We see above that spend_A = $19 maximizes profit and spending up to $90 remains profitable enough to keep us above the baseline profit of $500. However, at spend_A >= $91, we actually start to lose profit. That is, spending another dollar in channel A generates less than one dollar in revenue. Depending on our objective (maximizing profit or maximizing revenue) and our marketing budget, we would want to spend between $19 and $90 in channel A, but not more.
+
+Of course, it is almost never the case that there is only one marketing channel in which to spend a marketing budget. Let's now consider what happens when we have two marketing channels where the response curves of both channels are still known, but different. We express that model in the following way:
+
+$Rev = \beta_0 + \beta_1 ln(S_1+1) + \beta_2 ln(S_2+1)$
+
+where $i$ = 2 since there are two channels.
+
+```{r}
+
+baseline_rev <- 500
+
+spend_A <- seq(0,100,by=1)
+slope_A <- 20
+
+spend_B <- seq(0,100,by=1)
+slope_B <- 5 # Response of revenue to spend in channel B is lower than channel A
+
+df <- expand.grid(spend_A=spend_A, spend_B=spend_B)
+
+df$total_rev <- baseline_rev + (slope_A * log(df$spend_A + 1)) + (slope_B * log(df$spend_B + 1))
+
+df$profit <- df$total_rev - df$spend_A - df$spend_B
+
+# Determine the spend on A and B that maximizes profit
+df_max_profit <- subset(df, profit==max(df$profit))
+spend_A_optimal <- df_max_profit$spend_A
+spend_B_optimal <- df_max_profit$spend_B
+profit_optimal <- df_max_profit$profit
+
+# Plot spend on A and B against profit and identify spend combination that optimizes profit
+ggplot(df, aes(spend_A, spend_B, z=profit)) +
+  geom_contour_filled() +
+  geom_point(x=spend_A_optimal, y=spend_B_optimal, color="green") +
+  geom_vline(xintercept=spend_A_optimal, linetype="dashed", color="green") +
+  geom_hline(yintercept=spend_B_optimal, linetype="dashed", color="green") +
+  annotate("text", x=spend_A_optimal, y=spend_B_optimal, label=round(profit_optimal), hjust=0, vjust=0, size=3) +
+  scale_x_continuous(breaks=seq(0, 100, by=20)) +
+  scale_y_continuous(breaks=seq(0, 100, by=20)) +
+  labs(fill='profit')
+
+```
+
+In the above plot, we see the regions of profitability for different combinations of spend in channels A and B with spend_A = $19 and spend_B = $4 maximizing profit at $545. Intuitively, it makes sense to spend more in channel A since revenue is much more responsive to spend in channel A than in channel B. However, as we saw earlier, due to the shape of the response curves and diminishing returns, it also makes sense that at least some spend in channel B will maximize profit.
+
+So far, we have focused on profit as the business outcome, but more typical in the real world is that a business is trying to optimize spend across marketing channels for a given marketing budget. Let's now address that for a fixed marketing budget of $100.
+```{r}
+
+df_limited <- subset(df, (spend_A + spend_B)==100) # All combinations of spend on A and B for a marketing budget limited to $100.
+
+df_limited_optimal <- subset(df_limited, total_rev==max(df_limited$total_rev))
+spend_A_optimal <- df_limited_optimal$spend_A
+spend_B_optimal <- df_limited_optimal$spend_B
+total_rev_optimal <- df_limited_optimal$total_rev
+
+# All other combinations of Spend A and Spend B are sub optimal, but we choose one combination for illustration
+spend_A_suboptimal <- 50
+spend_B_suboptimal <- 50
+df_limited_suboptimal <- subset(df_limited, spend_A==spend_A_suboptimal & spend_B==spend_B_suboptimal)
+total_rev_suboptimal <- df_limited_suboptimal$total_rev
+
+# Plot spend on A and B against revenue and identify spend combination that optimizes revenue for a marketing budget of $100
+ggplot(df, aes(spend_A, spend_B, z=total_rev)) +
+  geom_contour_filled() +
+  geom_point(x=spend_A_optimal, y=spend_B_optimal, color="green") +
+  geom_vline(xintercept=spend_A_optimal, linetype="dashed", color="green") +
+  geom_hline(yintercept=spend_B_optimal, linetype="dashed", color="green") +
+  annotate("text", x=spend_A_optimal+1, y=spend_B_optimal+1, label=round(total_rev_optimal), hjust=0, vjust=0, size=3) +
+  geom_point(x=spend_A_suboptimal, y=spend_B_suboptimal, color="red") +
+  geom_vline(xintercept=spend_A_suboptimal, linetype="dashed", color="red") +
+  geom_hline(yintercept=spend_B_suboptimal, linetype="dashed", color="red") +
+  annotate("text", x=spend_A_suboptimal+1, y=spend_B_suboptimal+1, label=round(total_rev_suboptimal), hjust=0, vjust=0, size=3) +
+  scale_x_continuous(breaks=seq(0, 100, by=20)) +
+  scale_y_continuous(breaks=seq(0, 100, by=20)) +
+  labs(fill='total_rev')
+
+```
+
+In the plot above, we see that spend_A = $81 and spend_B = $19 maximizes revenue for a marketing budget of $100. At this combination of spend in channels A and B, revenue is $603. A naive approach might be to simply split the $100 marketing budget 50/50 between channels A and B. However, this is sub-optimal and only yields $598 in revenue. In fact, given that baseline revenue = $500, allocating our $100 marketing budget in the optimal way vs. the naive sub-opitimal allocation is the difference between the marketing investment generating a profit ($100 of spend generating $103 of incremental revenue) rather than a loss ($100 of spend generating only $98 of incremental revenue).
+
+## A more real-world example
+
+Thus far, we have been working with an idealized data set where the exact relationship between marketing spend and revenue is known. However, this is obviously never the case in practice. We will now turn to a simulated data set that introduces some noise and fit a model to that data to estimate the relationship between marketing spend and revenue. We express that model in the following way:
+
+$\hat{Rev} = \hat{\beta_0} + \hat{\beta_1} ln(S_1+1) + \hat{\beta_2} ln(S_2+1) + \epsilon$
+
+This is essentially the same model we saw previously with the addition of the error term, $\epsilon$, to represent the noise we're introducing.
+
+The code to generate the data set is:
+```{r}
+
+set.seed(1)
+
+# Simulate data for 104 weeks (2 years)
+for (i in 1:104) {
+  week <- i
+  
+  spend_A <- sample(c(1:100), 1)
+  slope_A <- 20
+  revenue_A <- slope_A*log(spend_A) * (1 + rnorm(1, 0, .1)) # Introduce small amount of noise
+  
+  spend_B <- sample(c(1:100), 1)
+  slope_B <- 5
+  revenue_B <- slope_B*log(spend_B) * (1 + rnorm(1, 0, .1)) # Introduce small amount of noise
+  
+  revenue <- baseline_rev + revenue_A + revenue_B
+  
+  if (i==1) {
+    df <- data.frame(cbind(week, spend_A, spend_B, revenue))
+  }
+  else {
+    df <- rbind(df, data.frame(cbind(week, spend_A, spend_B, revenue)))
+  }
+}
+
+```
+
+We are intentionally generating this data set to look very similar to our idealized data set above. There are several characteristics of this data set that are important:
+
+1. Many data points with a lot of variation in marketing spend
+2. Non-collinearity between spend in channels A and B
+3. Clear relationship between marketing spend and revenue with little noise
+
+Here are some plots that help visualize these characteristics:
+```{r}
+
+# Many data points and non-collinearity between spend in channels
+ggplot() +
+  geom_point(aes(x=df$spend_A, y=df$spend_B)) +
+  labs(x="spend_A", y="spend_B")
+
+# Clear relationship between marketing spend in channel A with little noise
+ggplot() +
+  geom_point(aes(x=df$spend_A , y=df$revenue)) +
+  #scale_x_continuous(breaks=seq(0, 100, by=20)) +
+  #scale_y_continuous(breaks=seq(0, 100, by=20)) +
+  labs(x="spend_A", y="revenue")
+
+# Less clear for channel B, but this makes sense since the effect of spend in channel A on revenue is much stronger than spend in channel B
+ggplot() +
+  geom_point(aes(x=df$spend_B, y=df$revenue)) +
+  #scale_x_continuous(breaks=seq(0, 100, by=20)) +
+  #scale_y_continuous(breaks=seq(0, 100, by=20)) +
+  labs(x="spend_B", y="revenue")
+
+```
+
+It is rare that many of these conditions are met with real-world data let alone all of them. Nonetheless, we will start here to help further build our understanding.
+
+Let's now fit and evaluate our log-linear model:
+```{r}
+
+df$log_spend_A <- log(df$spend_A + 1)
+df$log_spend_B <- log(df$spend_B + 1)
+
+model <- lm(revenue ~ log_spend_A + log_spend_B, data=df)
+summary(model)
+
+```
+We see from above that the model yields a high adjusted R-squared and that all coefficients are significant. Moreover, we see that the estimates of the baseline revenue (Intercept) and coefficients of the log of spend in channels A and B are very close to what was used in the generation of the simulated data set.
+
+We'll now use that model to predict the optimal mix of spend in channels A and B for a marketing budget of $100. First, we create a data set with every combination of spend in each channel between $0 and $100 and the predicted revenue using the coefficients from the model. It's worth noting that with only two marketing channels and a relatively small number of spend combinations, this grid search approach is practical. However, in the real world, we would likely encounter more channels and many more combinations of spend. In that case, the grid search approach is impractical and we would turn to other random methods which is beyond the scope of this article.
+```{r}
+
+spend_A <- seq(0, 100, by=1)
+slope_A <- model$coefficients[2]
+
+spend_B <- seq(0,100,by=1)
+slope_B <- model$coefficients[3]
+
+df_test <- expand.grid(spend_A=spend_A, spend_B=spend_B)
+
+df_test$revenue <- predict(model, data.frame(log_spend_A=log(df_test$spend_A + 1), log_spend_B=log(df_test$spend_B + 1)))
+df_test$profit <- df_test$revenue - df_test$spend_A - df_test$spend_B
+
+head(df_test)
+
+```
+
+Now we select the spend combination that is predicted to maximize revenue:
+```{r}
+
+df_test <- subset(df_test, (spend_A + spend_B)==100)
+df_test_optimal <- subset(df_test, revenue==max(df_test$revenue))
+spend_A_optimal <- df_test_optimal$spend_A
+spend_B_optimal <- df_test_optimal$spend_B
+cat(paste(paste("Optimal spend on Channel A =", spend_A_optimal),
+    paste("Optimal spend on Channel B =", spend_B_optimal),
+    paste("Maximum Revenue =", round(df_test_optimal$revenue)), sep="\n"))
+
+```
+
+We see that spend_A = $83 and spend_B = $17 is predicted to maximize revenue at $603 with a baseline revenue of $495. That matches closely with what we know to be true based on how we generated the data set.
+
+## Conclusions and next steps
+
+Under fairly ideal conditions, we can construct a model that will likely come close to determining the optimal amount to spend in each marketing channel to optimize total revenue. Unfortunately, businesses are seldom presented with the ideal in practice. Complicating factors such as limited data due to data collection issues, little variation in channel spend, noisy data, many marketing channels, seasonality, non-stationary response curves (i.e. relationship between marketing spend and revenue changes over time), competitor activities, and macroeconomic variables can significantly inhibit our ability to develop models that we can have confidence in for making marketing investment decisions. We may address some of these in future articles, but hopefully this article has been helpful for getting a grounding in MMM, what it aims to achieve, as well as providing code examples the reader can experiment with.
