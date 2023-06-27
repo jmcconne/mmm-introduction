@@ -1,9 +1,9 @@
 ---
 title: "Introduction to Media Mix Modeling (MMM) in R"
 output:
-  html_document:
-    toc: no
   pdf_document:
+    toc: no
+  html_document:
     toc: no
   word_document:
     toc: no
@@ -13,7 +13,7 @@ In this post, we will provide an introduction to MMM (Media Mix Modeling, also s
 
 ## Foundational concepts
 
-First, let's start with the simplest example where we have only a single marketing channel and a known relationship between marketing spend and revenue. Though not realistic, this will serve as a foundation for what follows. We will express the relationship between revenue and marketing spend as log-linear in the following way:
+First, let's start with the simplest example where we have only a single marketing channel and a known relationship between marketing spend and revenue. Though not realistic, this will serve as a foundation for what follows. We will express the relationship between revenue and marketing spend as linear-log in the following way:
 
 $Rev = \beta_0 + \beta_1 ln(S_1+1)$
 
@@ -217,7 +217,7 @@ ggplot() +
 
 It is rare that many of these conditions are met with real-world data let alone all of them. Nonetheless, we will start here to help further build our understanding.
 
-Let's now fit and evaluate our log-linear model:
+Let's now fit and evaluate our linear-log model:
 ```{r}
 
 df$log_spend_A <- log(df$spend_A + 1)
