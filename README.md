@@ -1,6 +1,6 @@
-# *\<project-name-here\>*
+# mmm-introduction
 
-*\<Brief description of project here\>*
+This project is an interactive, educational initiative designed to facilitate the understanding of media mix modeling (MMM) through the use of tangible toy model examples which mimic the various components of media mix models. The ultimate goal is to demystify the complexities of MMM, making it more accessible to individuals with varying levels of expertise in data analytics, marketing, or business decision-making.
 
 ## Installation
 
