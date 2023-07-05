@@ -13,11 +13,11 @@ In this post, we will provide an introduction to MMM (Media Mix Modeling, also s
 
 ## Foundational concepts
 
-First, let's start with the simplest example where we have only a single marketing channel and a known relationship between marketing spend and revenue. Though not realistic, this will serve as a foundation for what follows. We will express the relationship between revenue and marketing spend as linear-log in the following way:
+First, let's start with the simplest example where we have only a single marketing channel and a known linear relationship between revenue and log marketing spend that produces diminishing returns in revenue. Though not realistic for a large organization, this will serve as a foundation for what follows. We will express the relationship between revenue and marketing spend in the following way:
 
 $Rev = \beta_0 + \beta_1 ln(S_1+1)$
 
-where $\beta_0$ is the baseline revenue (revenue in the absence of marketing), $S_1$ is the marketing channel spend, and $\beta_1$ is how responsive revenue is to changes in $S_1$. We are taking the logarithm of marketing spend to capture the diminishing returns we typically see from increased marketing spend.
+where $\beta_0$ is the baseline revenue (revenue in the absence of marketing), $S_1$ is the marketing channel spend, and $\beta_1$ is how responsive revenue is to changes in $S_1$. We take the logarithm of marketing spend to model the diminishing returns we typically see from increased marketing spend.
 
 Note: We add 1 to spend so that at spend = 0, there is no incremental revenue beyond baseline revenue.
 
@@ -70,11 +70,13 @@ ggplot() +
 
 For simplicity, let's assume the baseline revenue of $500 is all profit (i.e. baseline profit is also $500). We see above that spend_A = $19 maximizes profit and spending up to $90 remains profitable enough to keep us above the baseline profit of $500. However, at spend_A >= $91, we actually start to lose profit. That is, spending another dollar in channel A generates less than one dollar in revenue. Depending on our objective (maximizing profit or maximizing revenue) and our marketing budget, we would want to spend between $19 and $90 in channel A, but not more.
 
-Of course, it is almost never the case that there is only one marketing channel in which to spend a marketing budget. Let's now consider what happens when we have two marketing channels where the response curves of both channels are still known, but different. We express that model in the following way:
+Of course, it is almost never the case that there is only one marketing channel in which to spend a marketing budget. Let's now consider what happens when we have two marketing channels where the (linearly independent) response curves of both channels are still known, but different. We express that model in the following way:
 
 $Rev = \beta_0 + \beta_1 ln(S_1+1) + \beta_2 ln(S_2+1)$
 
 where $i$ = 2 since there are two channels.
+
+Note that there is no interaction term in this example, nor have we chosen to use a multiplicative or other advanced model as is commonly the case in MMM.
 
 ```{r}
 
